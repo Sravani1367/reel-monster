@@ -4,13 +4,15 @@ name: Build Reel Monster APK
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out source
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Set up Java
@@ -19,21 +21,32 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+      - name: Locate Android project
+        id: project
+        run: |
+          if [ -f settings.gradle ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f reel-monster/settings.gradle ]; then
+            echo "dir=reel-monster" >> "$GITHUB_OUTPUT"
+          else
+            echo "Gradle project not found"
+            exit 1
+          fi
+
+      - name: Build APK
+        run: |
+          gradle --no-daemon \
+            -p "${{ steps.project.outputs.dir }}" \
+            assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: reel-monster-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Reel-Monster-APK
+          path: ${{ steps.project.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 14
